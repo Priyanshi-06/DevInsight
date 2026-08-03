@@ -52,3 +52,20 @@ class PrDraft(models.Model):
 
     def __str__(self):
         return f'PrDraft({self.repository}, {self.target_file})'
+
+
+class TestSuiteDraft(models.Model):
+    repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='test_drafts')
+    target_file = models.CharField(max_length=1000)
+    task_description = models.TextField(blank=True, default='')
+    test_file_name = models.CharField(max_length=255, blank=True, default='')
+    framework = models.CharField(max_length=100, blank=True, default='')
+    explanation = models.TextField(blank=True, default='')
+    test_code = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'TestSuiteDraft({self.repository}, {self.target_file})'

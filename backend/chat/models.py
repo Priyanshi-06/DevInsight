@@ -6,9 +6,13 @@ class ChatSession(models.Model):
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='chat_sessions')
     session_id = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Bumped on every new message so the session list can sort by recent activity, not just
+    # creation order.
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('repository', 'session_id')
+        ordering = ['-updated_at']
 
     def __str__(self):
         return f'{self.repository} / {self.session_id}'

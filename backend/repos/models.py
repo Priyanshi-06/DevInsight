@@ -25,6 +25,9 @@ class Repository(models.Model):
     error_message = models.TextField(blank=True, default='')
     file_tree = models.JSONField(default=list, blank=True)
     chunk_count = models.IntegerField(default=0)
+    # The commit SHA that was actually indexed, captured at ingestion time — compared against the
+    # branch's current HEAD to detect when the indexed snapshot has gone stale.
+    last_indexed_commit_sha = models.CharField(max_length=40, blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

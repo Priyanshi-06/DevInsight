@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Network, Sparkles, GitPullRequest, ArrowRight } from 'lucide-react';
+import { MessageSquare, Network, Sparkles, GitPullRequest, FlaskConical, ArrowRight } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 
@@ -9,6 +9,7 @@ const FEATURES = [
   { icon: Network, label: 'Architecture diagrams' },
   { icon: Sparkles, label: 'Contribution picks' },
   { icon: GitPullRequest, label: 'PR draft assistant' },
+  { icon: FlaskConical, label: 'Test case generator' },
 ];
 
 export default function Home() {

@@ -27,6 +27,15 @@ def run_ingestion(repository):
         repository.stars = metadata['stars']
         repository.save()
 
+        # Best-effort: captured right before download so it reflects what's actually indexed.
+        # Never fatal — a repo can still be indexed even if the staleness check can't be set up.
+        try:
+            commit_sha = fetch.fetch_latest_commit_sha(
+                repository.owner, repository.name, repository.default_branch,
+            )
+        except Exception:
+            commit_sha = ''
+
         repo_root = fetch.download_and_extract(repository.owner, repository.name, repository.default_branch)
 
         repository.status = 'chunking'
@@ -61,6 +70,7 @@ def run_ingestion(repository):
         repository.chunk_count = len(all_chunks)
         repository.status = 'completed'
         repository.error_message = ''
+        repository.last_indexed_commit_sha = commit_sha
         repository.save()
 
     except Exception as exc:  # noqa: BLE001 - surface any failure onto the repository record

@@ -11,6 +11,7 @@ import Chat from './pages/Chat';
 import Architecture from './pages/Architecture';
 import Recommendations from './pages/Recommendations';
 import PrAssistant from './pages/PrAssistant';
+import TestGenerator from './pages/TestGenerator';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
                 <Route path="architecture" element={<Architecture />} />
                 <Route path="recommendations" element={<Recommendations />} />
                 <Route path="pr-assistant" element={<PrAssistant />} />
+                <Route path="tests" element={<TestGenerator />} />
               </Route>
             </Route>
           </Routes>
