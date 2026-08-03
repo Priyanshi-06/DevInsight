@@ -63,6 +63,12 @@ export const api = {
   login: (email, password) =>
     request('/auth/login/', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request('/auth/me/'),
+  forgotPassword: (email) =>
+    request('/auth/forgot-password/', { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyOtp: ({ email, otp }) =>
+    request('/auth/verify-otp/', { method: 'POST', body: JSON.stringify({ email, otp }) }),
+  resetPassword: ({ email, otp, password }) =>
+    request('/auth/reset-password/', { method: 'POST', body: JSON.stringify({ email, otp, password }) }),
 
   listRepos: () => request('/repos/'),
   getRepo: (id) => request(`/repos/${id}/`),
@@ -72,6 +78,11 @@ export const api = {
       body: JSON.stringify({ github_url: githubUrl }),
     }),
   deleteRepo: (id) => request(`/repos/${id}/`, { method: 'DELETE' }),
+  updateRepo: (id, { displayName, description }) =>
+    request(`/repos/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ display_name: displayName, description }),
+    }),
   getFileContent: (repoId, path) =>
     request(`/repos/${repoId}/file/?path=${encodeURIComponent(path)}`),
   getStaleness: (repoId) => request(`/repos/${repoId}/staleness/`),

@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { MessageSquare, Network, Sparkles, GitPullRequest, FlaskConical, ArrowRight, RefreshCw } from 'lucide-react';
+import {
+  MessageSquare, Network, Sparkles, GitPullRequest, FlaskConical, ArrowRight, RefreshCw,
+  Settings2, X,
+} from 'lucide-react';
 import { api } from '../api/client';
 import FileTree from '../components/FileTree';
 import CodeViewer from '../components/CodeViewer';
@@ -38,11 +41,85 @@ const FEATURES = [
   },
 ];
 
+function TweaksPanel({ repo, onClose, onSaved }) {
+  const [displayName, setDisplayName] = useState(repo.display_name || '');
+  const [description, setDescription] = useState(repo.description || '');
+  const [saving, setSaving] = useState(false);
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await onSaved({ displayName: displayName.trim(), description: description.trim() });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      ref={panelRef}
+      className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/50 z-30 p-4"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-white">Tweaks</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-zinc-500 hover:text-white transition"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 mb-1.5">Display name</label>
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder={`${repo.owner}/${repo.name}`}
+            className="w-full rounded-lg border border-zinc-800 bg-black px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#6b2c35] focus:border-transparent"
+          />
+          <p className="text-xs text-zinc-600 mt-1">Shown instead of {repo.owner}/{repo.name} — doesn't rename anything on GitHub.</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 mb-1.5">Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="w-full rounded-lg border border-zinc-800 bg-black px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#6b2c35] focus:border-transparent resize-none"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full px-3 py-2 rounded-lg accent-gradient text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function RepoDashboard() {
   const { repo, reloadRepo, startPolling } = useOutletContext();
   const [viewerFile, setViewerFile] = useState(null);
   const [stale, setStale] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  const [tweaksOpen, setTweaksOpen] = useState(false);
 
   const repoId = repo?.id;
   const repoStatus = repo?.status;
@@ -72,6 +149,11 @@ export default function RepoDashboard() {
     }
   }
 
+  async function handleSaveTweaks({ displayName, description }) {
+    await api.updateRepo(repoId, { displayName, description });
+    await reloadRepo();
+  }
+
   if (!repo) {
     return <div className="max-w-5xl mx-auto px-4 py-10 text-sm text-zinc-500">Loading…</div>;
   }
@@ -81,12 +163,28 @@ export default function RepoDashboard() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between mb-2 relative">
         <div>
           <h1 className="text-2xl font-bold text-white">
-            {repo.owner}/{repo.name}
+            {repo.display_name || `${repo.owner}/${repo.name}`}
           </h1>
+          {repo.display_name && (
+            <p className="text-xs font-mono text-zinc-600 mt-0.5">{repo.owner}/{repo.name}</p>
+          )}
           <p className="text-sm text-zinc-500 mt-1">{repo.description || 'No description'}</p>
+        </div>
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setTweaksOpen((o) => !o)}
+            title="Tweaks"
+            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800/60 transition"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
+          {tweaksOpen && (
+            <TweaksPanel repo={repo} onClose={() => setTweaksOpen(false)} onSaved={handleSaveTweaks} />
+          )}
         </div>
       </div>
 

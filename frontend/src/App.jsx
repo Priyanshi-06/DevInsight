@@ -1,11 +1,12 @@
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import RequireAuth from './components/RequireAuth';
+import RootRoute from './components/RootRoute';
 import TopBar from './components/TopBar';
 import RepoLayout from './layouts/RepoLayout';
-import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
 import RepoDashboard from './pages/RepoDashboard';
 import Chat from './pages/Chat';
 import Architecture from './pages/Architecture';
@@ -20,10 +21,11 @@ export default function App() {
         <TopBar />
         <div className="flex-1 flex flex-col">
           <Routes>
+            <Route path="/" element={<RootRoute />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route element={<RequireAuth />}>
-              <Route path="/" element={<Home />} />
               <Route path="/repos/:id" element={<RepoLayout />}>
                 <Route index element={<RepoDashboard />} />
                 <Route path="chat" element={<Chat />} />
