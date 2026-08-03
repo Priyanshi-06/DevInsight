@@ -7,12 +7,15 @@ from repos.models import Repository
 from .serializers import (
     ArchitectureSnapshotSerializer,
     CreatePrDraftSerializer,
+    CreateTestSuiteSerializer,
     PrDraftSerializer,
     RecommendationSerializer,
+    TestSuiteDraftSerializer,
 )
 from .services.architecture import generate_architecture
 from .services.pr_draft import PrDraftError, generate_pr_draft
 from .services.recommendations import generate_recommendations
+from .services.test_generator import TestGeneratorError, generate_test_suite
 
 
 def _get_repo_or_404(user, repo_id):
@@ -101,3 +104,34 @@ class PrDraftView(APIView):
             return Response({'error': f'Failed to generate PR draft: {exc}'}, status=status.HTTP_502_BAD_GATEWAY)
 
         return Response(PrDraftSerializer(draft).data, status=status.HTTP_201_CREATED)
+
+
+class TestSuiteView(APIView):
+    def get(self, request, repo_id):
+        repository, error = _require_completed_repo(request.user, repo_id)
+        if error:
+            return error
+
+        drafts = repository.test_drafts.all()
+        return Response({'drafts': TestSuiteDraftSerializer(drafts, many=True).data})
+
+    def post(self, request, repo_id):
+        repository, error = _require_completed_repo(request.user, repo_id)
+        if error:
+            return error
+
+        serializer = CreateTestSuiteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            draft = generate_test_suite(
+                repository,
+                target_file=serializer.validated_data.get('target_file') or None,
+                task_description=serializer.validated_data.get('task_description'),
+            )
+        except TestGeneratorError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:  # noqa: BLE001
+            return Response({'error': f'Failed to generate tests: {exc}'}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response(TestSuiteDraftSerializer(draft).data, status=status.HTTP_201_CREATED)

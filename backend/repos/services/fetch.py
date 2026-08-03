@@ -42,6 +42,40 @@ def fetch_repo_metadata(owner, repo):
     }
 
 
+def fetch_latest_commit_sha(owner, repo, branch):
+    """The current HEAD commit SHA of a branch — compared against what was actually indexed to
+    detect a stale snapshot."""
+    resp = requests.get(
+        f'https://api.github.com/repos/{owner}/{repo}/commits/{branch}',
+        headers=_github_headers(),
+        timeout=15,
+    )
+    if resp.status_code == 403:
+        raise RepoFetchError('GitHub API rate limit exceeded. Try again later or set GITHUB_TOKEN.')
+    if resp.status_code != 200:
+        raise RepoFetchError(f'Could not check the latest commit for {owner}/{repo}@{branch}.')
+    return resp.json()['sha']
+
+
+def fetch_raw_file(owner, repo, branch, path, max_bytes=None):
+    """Fetches a single file's raw content via GitHub's raw content endpoint — much lighter than
+    download_and_extract() when only one file is needed. Returns (content, truncated)."""
+    url = f'https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}'
+    resp = requests.get(url, timeout=15)
+    if resp.status_code != 200:
+        raise RepoFetchError(f'Could not fetch {path} from GitHub (status {resp.status_code}).')
+
+    content_bytes = resp.content
+    truncated = bool(max_bytes) and len(content_bytes) > max_bytes
+    if truncated:
+        content_bytes = content_bytes[:max_bytes]
+
+    try:
+        return content_bytes.decode('utf-8'), truncated
+    except UnicodeDecodeError:
+        raise RepoFetchError('This file appears to be binary and cannot be read as text.')
+
+
 def download_and_extract(owner, repo, branch):
     """Downloads the repo tarball via GitHub's codeload endpoint and extracts it to a temp dir.
     Returns the path to the extracted repo root (the tarball's single top-level directory)."""

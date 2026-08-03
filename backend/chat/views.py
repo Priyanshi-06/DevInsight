@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 
 from repos.models import Repository
 from .models import ChatMessage, ChatSession
-from .serializers import ChatMessageSerializer, SendMessageSerializer
+from .serializers import ChatMessageSerializer, ChatSessionSerializer, SendMessageSerializer
 from .services.rag import answer_question
 
 
@@ -48,6 +48,7 @@ class ChatMessageView(APIView):
             return Response({'error': f'Failed to generate an answer: {exc}'}, status=status.HTTP_502_BAD_GATEWAY)
 
         ChatMessage.objects.create(session=session, role='assistant', content=answer, citations=citations)
+        session.save(update_fields=['updated_at'])
 
         return Response({'answer': answer, 'citations': citations})
 
@@ -68,3 +69,25 @@ class ChatHistoryView(APIView):
 
         messages = ChatMessageSerializer(session.messages.all(), many=True).data
         return Response({'messages': messages})
+
+
+class ChatSessionListView(APIView):
+    def get(self, request, repo_id):
+        repository = _get_repo_or_404(request.user, repo_id)
+        if repository is None:
+            return Response({'error': 'Repository not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        sessions = repository.chat_sessions.all()
+        return Response({'sessions': ChatSessionSerializer(sessions, many=True).data})
+
+
+class ChatSessionDetailView(APIView):
+    def delete(self, request, repo_id, session_id):
+        repository = _get_repo_or_404(request.user, repo_id)
+        if repository is None:
+            return Response({'error': 'Repository not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        deleted, _ = ChatSession.objects.filter(repository=repository, session_id=session_id).delete()
+        if not deleted:
+            return Response({'error': 'Chat session not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

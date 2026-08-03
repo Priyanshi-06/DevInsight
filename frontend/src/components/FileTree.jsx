@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react';
 import { File, Folder, FolderOpen } from 'lucide-react';
 
 function buildTree(paths) {
-  const root = { name: '', children: {}, isFile: false };
+  const root = { name: '', path: '', children: {}, isFile: false };
   for (const path of paths) {
     const parts = path.split('/');
     let node = root;
+    const acc = [];
     parts.forEach((part, idx) => {
+      acc.push(part);
       const isFile = idx === parts.length - 1;
       if (!node.children[part]) {
-        node.children[part] = { name: part, children: {}, isFile };
+        node.children[part] = { name: part, path: acc.join('/'), children: {}, isFile };
       }
       node = node.children[part];
     });
@@ -17,7 +19,7 @@ function buildTree(paths) {
   return root;
 }
 
-function Node({ node, depth }) {
+function Node({ node, depth, onFileClick }) {
   const [open, setOpen] = useState(depth < 1);
   const entries = Object.values(node.children).sort((a, b) => {
     if (a.isFile !== b.isFile) return a.isFile ? 1 : -1;
@@ -26,10 +28,15 @@ function Node({ node, depth }) {
 
   if (node.isFile) {
     return (
-      <div className="flex items-center gap-1.5 py-0.5 text-zinc-400" style={{ paddingLeft: depth * 16 }}>
+      <button
+        type="button"
+        onClick={() => onFileClick?.(node.path)}
+        className="flex items-center gap-1.5 py-0.5 w-full text-left text-zinc-400 hover:text-[#c99aa1] transition"
+        style={{ paddingLeft: depth * 16 }}
+      >
         <File className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
         <span className="truncate">{node.name}</span>
-      </div>
+      </button>
     );
   }
 
@@ -49,19 +56,21 @@ function Node({ node, depth }) {
           <span className="truncate font-medium">{node.name}</span>
         </button>
       )}
-      {open && entries.map((child) => <Node key={child.name} node={child} depth={depth + 1} />)}
+      {open && entries.map((child) => (
+        <Node key={child.name} node={child} depth={depth + 1} onFileClick={onFileClick} />
+      ))}
     </div>
   );
 }
 
-export default function FileTree({ paths }) {
+export default function FileTree({ paths, onFileClick }) {
   const tree = useMemo(() => buildTree(paths || []), [paths]);
   if (!paths || paths.length === 0) {
     return <p className="text-sm text-zinc-500">No files indexed yet.</p>;
   }
   return (
     <div className="text-sm font-mono max-h-96 overflow-y-auto pr-2">
-      <Node node={tree} depth={0} />
+      <Node node={tree} depth={0} onFileClick={onFileClick} />
     </div>
   );
 }

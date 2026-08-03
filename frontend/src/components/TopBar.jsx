@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Sparkles, LogOut } from 'lucide-react';
+import { Code2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function TopBar() {
@@ -16,9 +16,9 @@ export default function TopBar() {
       <div className="h-full px-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-semibold text-white">
           <span className="accent-gradient inline-flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-lg shadow-[#6b2c35]/30">
-            <Sparkles className="h-4 w-4" />
+            <Code2 className="h-4 w-4" />
           </span>
-          <span className="tracking-tight">Codebase Assistant</span>
+          <span className="tracking-tight">DevInsight</span>
         </Link>
         {user && (
           <div className="flex items-center gap-3">

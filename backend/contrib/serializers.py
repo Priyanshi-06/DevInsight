@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ArchitectureSnapshot, Recommendation, PrDraft
+from .models import ArchitectureSnapshot, Recommendation, PrDraft, TestSuiteDraft
 
 
 class ArchitectureSnapshotSerializer(serializers.ModelSerializer):
@@ -36,4 +36,23 @@ class CreatePrDraftSerializer(serializers.Serializer):
     def validate(self, data):
         if not data.get('issue_number') and not data.get('task_description'):
             raise serializers.ValidationError('Provide either issue_number or task_description.')
+        return data
+
+
+class TestSuiteDraftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TestSuiteDraft
+        fields = [
+            'id', 'target_file', 'task_description', 'test_file_name', 'framework',
+            'explanation', 'test_code', 'created_at',
+        ]
+
+
+class CreateTestSuiteSerializer(serializers.Serializer):
+    target_file = serializers.CharField(required=False, allow_blank=True)
+    task_description = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, data):
+        if not data.get('target_file') and not data.get('task_description'):
+            raise serializers.ValidationError('Provide either target_file or task_description.')
         return data

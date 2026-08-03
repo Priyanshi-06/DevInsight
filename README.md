@@ -1,4 +1,4 @@
-# AI Codebase Understanding Assistant
+# DevInsight
 
 An AI-powered assistant that ingests a public GitHub repository, indexes its code with embeddings,
 and helps a developer understand it: RAG-based Q&A, an auto-generated architecture diagram,

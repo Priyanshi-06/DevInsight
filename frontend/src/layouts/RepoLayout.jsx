@@ -7,15 +7,13 @@ export default function RepoLayout() {
   const { id } = useParams();
   const [repo, setRepo] = useState(null);
   const [error, setError] = useState('');
-  const pollRef = useRef(null);
+  const timeoutRef = useRef(null);
+  const cancelledRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
       const data = await api.getRepo(id);
       setRepo(data);
-      if (data.status === 'completed' || data.status === 'failed') {
-        clearInterval(pollRef.current);
-      }
       return data;
     } catch (err) {
       setError(err.message);
@@ -23,23 +21,32 @@ export default function RepoLayout() {
     }
   }, [id]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setRepo(null);
-    setError('');
-
+  // A self-scheduling timeout chain (rather than setInterval) so polling naturally stops once
+  // the repo settles into completed/failed, but can be restarted on demand — e.g. after
+  // triggering a re-index, which sends the repo back through pending/fetching/... and needs
+  // watching again.
+  const startPolling = useCallback(() => {
+    clearTimeout(timeoutRef.current);
     async function tick() {
       const data = await load();
-      if (cancelled || !data) return;
+      if (cancelledRef.current || !data) return;
+      if (data.status !== 'completed' && data.status !== 'failed') {
+        timeoutRef.current = setTimeout(tick, 2000);
+      }
     }
-
     tick();
-    pollRef.current = setInterval(tick, 2000);
+  }, [load]);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+    setRepo(null);
+    setError('');
+    startPolling();
     return () => {
-      cancelled = true;
-      clearInterval(pollRef.current);
+      cancelledRef.current = true;
+      clearTimeout(timeoutRef.current);
     };
-  }, [id, load]);
+  }, [id, startPolling]);
 
   return (
     <div className="flex flex-1 min-h-[calc(100vh-3.5rem)]">
@@ -48,7 +55,7 @@ export default function RepoLayout() {
         {error ? (
           <div className="max-w-4xl mx-auto px-4 py-10 text-sm text-red-400">{error}</div>
         ) : (
-          <Outlet context={{ repo, reloadRepo: load }} />
+          <Outlet context={{ repo, reloadRepo: load, startPolling }} />
         )}
       </main>
     </div>

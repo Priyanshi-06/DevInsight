@@ -72,6 +72,10 @@ export const api = {
       body: JSON.stringify({ github_url: githubUrl }),
     }),
   deleteRepo: (id) => request(`/repos/${id}/`, { method: 'DELETE' }),
+  getFileContent: (repoId, path) =>
+    request(`/repos/${repoId}/file/?path=${encodeURIComponent(path)}`),
+  getStaleness: (repoId) => request(`/repos/${repoId}/staleness/`),
+  reindexRepo: (repoId) => request(`/repos/${repoId}/reindex/`, { method: 'POST' }),
 
   sendChatMessage: (repoId, message, sessionId) =>
     request(`/repos/${repoId}/chat/`, {
@@ -80,6 +84,9 @@ export const api = {
     }),
   getChatHistory: (repoId, sessionId) =>
     request(`/repos/${repoId}/chat/history/?session_id=${sessionId}`),
+  listChatSessions: (repoId) => request(`/repos/${repoId}/chat/sessions/`),
+  deleteChatSession: (repoId, sessionId) =>
+    request(`/repos/${repoId}/chat/sessions/${encodeURIComponent(sessionId)}/`, { method: 'DELETE' }),
 
   getRecommendations: (repoId, refresh = false) =>
     request(`/repos/${repoId}/recommendations/${refresh ? '?refresh=true' : ''}`),
@@ -91,5 +98,12 @@ export const api = {
     request(`/repos/${repoId}/pr-draft/`, {
       method: 'POST',
       body: JSON.stringify({ issue_number: issueNumber ?? null, task_description: taskDescription || '' }),
+    }),
+
+  listTestDrafts: (repoId) => request(`/repos/${repoId}/tests/`),
+  createTestDraft: (repoId, { targetFile, taskDescription }) =>
+    request(`/repos/${repoId}/tests/`, {
+      method: 'POST',
+      body: JSON.stringify({ target_file: targetFile || '', task_description: taskDescription || '' }),
     }),
 };
