@@ -16,6 +16,10 @@ class Repository(models.Model):
     github_url = models.URLField()
     owner = models.CharField(max_length=255)  # the GitHub repo's owner/org, e.g. "pallets" — not the app user
     name = models.CharField(max_length=255)
+    # Purely cosmetic — a personal label shown instead of "owner/name" in the UI. Never used for
+    # GitHub API calls (those always use owner/name, the real identifiers), so it's safe to let
+    # the user set this to anything without touching ingestion, re-indexing, or file fetching.
+    display_name = models.CharField(max_length=255, blank=True, default='')
     default_branch = models.CharField(max_length=255, default='main')
     description = models.TextField(blank=True, default='')
     language = models.CharField(max_length=100, blank=True, default='')

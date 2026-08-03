@@ -43,3 +43,22 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid email or password.')
         data['user'] = user
         return data
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class VerifyOtpSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(min_length=6, max_length=6)
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(min_length=6, max_length=6)
+    password = serializers.CharField(write_only=True)
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value

@@ -136,6 +136,19 @@ CHROMA_PERSIST_DIR = env('CHROMA_PERSIST_DIR', default=str(BASE_DIR / 'chroma_da
 
 GITHUB_TOKEN = env('GITHUB_TOKEN', default='')
 
+# Password reset emails: defaults to Django's console backend, which just prints the email to
+# this server's terminal — works out of the box with zero setup for local development, same
+# tradeoff as the optional GITHUB_TOKEN above. Set EMAIL_BACKEND to
+# 'django.core.mail.backends.smtp.EmailBackend' plus the EMAIL_HOST_* vars to actually deliver
+# real emails in production.
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', default='')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@devinsight.local')
+
 # Ingestion tuning
 MAX_FILE_SIZE_BYTES = env.int('MAX_FILE_SIZE_BYTES', default=500_000)
 CHUNK_LINES = env.int('CHUNK_LINES', default=40)

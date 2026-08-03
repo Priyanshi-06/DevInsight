@@ -1,10 +1,19 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Code2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
+// Auth pages render their own standalone centered-card layout (see AuthLayout) with no
+// persistent header, so the global nav stays out of the way there.
+const AUTH_ROUTES = ['/login', '/signup', '/forgot-password'];
 
 export default function TopBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  if (AUTH_ROUTES.includes(location.pathname)) {
+    return null;
+  }
 
   function handleLogout() {
     logout();
@@ -20,7 +29,7 @@ export default function TopBar() {
           </span>
           <span className="tracking-tight">DevInsight</span>
         </Link>
-        {user && (
+        {user ? (
           <div className="flex items-center gap-3">
             <span className="text-xs text-zinc-500 hidden sm:inline">{user.email}</span>
             <button
@@ -30,6 +39,18 @@ export default function TopBar() {
               <LogOut className="h-3.5 w-3.5" />
               Log out
             </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <Link to="/login" className="text-xs font-medium text-zinc-400 hover:text-white transition">
+              Sign in
+            </Link>
+            <Link
+              to="/signup"
+              className="px-3 py-1.5 rounded-md accent-gradient text-white text-xs font-semibold hover:opacity-90 transition"
+            >
+              Get started
+            </Link>
           </div>
         )}
       </div>

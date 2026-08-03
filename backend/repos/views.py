@@ -9,6 +9,7 @@ from .serializers import (
     CreateRepositorySerializer,
     RepositoryListSerializer,
     RepositorySerializer,
+    UpdateRepositorySerializer,
 )
 from .services import fetch
 from .services.ingest import run_ingestion
@@ -64,6 +65,27 @@ class RepositoryDetailView(APIView):
         repository = _get_repo_or_404(request.user, repo_id)
         if isinstance(repository, Response):
             return repository
+        return Response(RepositorySerializer(repository).data)
+
+    def patch(self, request, repo_id):
+        repository = _get_repo_or_404(request.user, repo_id)
+        if isinstance(repository, Response):
+            return repository
+
+        serializer = UpdateRepositorySerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        update_fields = []
+        if 'display_name' in serializer.validated_data:
+            repository.display_name = serializer.validated_data['display_name'].strip()
+            update_fields.append('display_name')
+        if 'description' in serializer.validated_data:
+            repository.description = serializer.validated_data['description'].strip()
+            update_fields.append('description')
+
+        if update_fields:
+            repository.save(update_fields=[*update_fields, 'updated_at'])
+
         return Response(RepositorySerializer(repository).data)
 
     def delete(self, request, repo_id):
