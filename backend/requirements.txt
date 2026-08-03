@@ -18,6 +18,7 @@ Django==5.2.16
 django-cors-headers==4.9.0
 django-environ==0.14.0
 djangorestframework==3.17.1
+djangorestframework_simplejwt==5.5.1
 durationpy==0.10
 filelock==3.32.2
 flatbuffers==25.12.19
@@ -25,6 +26,7 @@ frozenlist==1.8.0
 fsspec==2026.7.0
 googleapis-common-protos==1.75.0
 grpcio==1.83.0
+gunicorn==26.0.0
 h11==0.16.0
 hf-xet==1.5.2
 httpcore==1.0.9
@@ -67,6 +69,7 @@ pydantic==2.13.4
 pydantic-settings==2.14.2
 pydantic_core==2.46.4
 Pygments==2.20.0
+PyJWT==2.13.0
 PyPika==0.51.1
 pyproject_hooks==1.2.0
 python-dateutil==2.9.0.post0
@@ -102,4 +105,5 @@ uvicorn==0.52.0
 watchfiles==1.2.0
 websocket-client==1.9.0
 websockets==17.0.1
+whitenoise==6.12.0
 yarl==1.24.5
