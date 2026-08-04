@@ -1,45 +1,26 @@
-import chromadb
-from django.conf import settings
+from django.db import connection
 
-_client = None
-
-
-def get_client():
-    global _client
-    if _client is None:
-        _client = chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIR)
-    return _client
+from . import chroma_backend, pg_backend
 
 
-def collection_name(repo_id):
-    return f'repo_{repo_id}'
-
-
-def get_or_create_collection(repo_id):
-    client = get_client()
-    return client.get_or_create_collection(name=collection_name(repo_id))
+def _backend():
+    """Postgres (e.g. Neon) persists across redeploys, unlike a Web Service's local disk where
+    ChromaDB's files would otherwise get wiped on every deploy. SQLite-backed local dev has no
+    such problem, so it keeps using the simpler file-based ChromaDB store."""
+    return pg_backend if connection.vendor == 'postgresql' else chroma_backend
 
 
 def delete_collection(repo_id):
-    client = get_client()
-    try:
-        client.delete_collection(name=collection_name(repo_id))
-    except Exception:
-        pass
+    return _backend().delete_collection(repo_id)
 
 
 def add_chunks(repo_id, ids, embeddings, documents, metadatas):
-    collection = get_or_create_collection(repo_id)
-    collection.add(ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas)
+    return _backend().add_chunks(repo_id, ids, embeddings, documents, metadatas)
 
 
 def query(repo_id, query_embedding, top_k):
-    collection = get_or_create_collection(repo_id)
-    return collection.query(query_embeddings=[query_embedding], n_results=top_k)
+    return _backend().query(repo_id, query_embedding, top_k)
 
 
 def get_first_chunks(repo_id):
-    """Returns the first chunk (start_line == 1) of every indexed file, i.e. the top of each
-    file where imports typically live, without needing to re-download the repository."""
-    collection = get_or_create_collection(repo_id)
-    return collection.get(where={'start_line': 1})
+    return _backend().get_first_chunks(repo_id)
