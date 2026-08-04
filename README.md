@@ -339,4 +339,8 @@ changes, and open a pull request.
 
 ## Author
 
-**Priyanshi**
+**Priyanshi** — built DevInsight solo, front to back: a Django/DRF + RAG backend, a React frontend,
+and enough production debugging (OOM crashes, CORS, embedding pipelines) along the way to have
+strong opinions about all three.
+
+[GitHub](https://github.com/Priyanshi-06)
