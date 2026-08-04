@@ -339,6 +339,4 @@ changes, and open a pull request.
 
 ## Author
 
-**Priyanshi**
-
-[GitHub](https://github.com/Priyanshi-06)
+**Priyanshi** — [GitHub](https://github.com/Priyanshi-06)
