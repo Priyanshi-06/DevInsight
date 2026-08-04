@@ -8,6 +8,19 @@ from vectorstore.client import add_chunks, delete_collection
 
 from . import chunker, fetch
 
+try:
+    import resource  # Unix only (Render); absent on Windows local dev.
+except ImportError:
+    resource = None
+
+
+def _log_mem(label):
+    if resource is None:
+        return
+    # ru_maxrss is peak RSS in KB on Linux (this process, growing monotonically over its life).
+    peak_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    print(f'[mem] {label}: peak RSS so far = {peak_mb:.1f} MB')
+
 
 def run_ingestion(repository):
     """Runs the full fetch -> chunk -> embed -> store pipeline for a Repository instance.
@@ -16,6 +29,7 @@ def run_ingestion(repository):
 
     repo_root = None
     failure_traceback = ''
+    _log_mem(f'repo {repository.id} start')
     try:
         repository.status = 'fetching'
         repository.save(update_fields=['status', 'updated_at'])
@@ -37,11 +51,13 @@ def run_ingestion(repository):
             commit_sha = ''
 
         repo_root = fetch.download_and_extract(repository.owner, repository.name, repository.default_branch)
+        _log_mem(f'repo {repository.id} after download')
 
         repository.status = 'chunking'
         repository.save(update_fields=['status', 'updated_at'])
 
         file_paths = chunker.collect_files(repo_root)
+        _log_mem(f'repo {repository.id} after collect_files ({len(file_paths)} files)')
 
         repository.file_tree = file_paths
         repository.status = 'embedding'
@@ -55,8 +71,10 @@ def run_ingestion(repository):
         batch_size = 100
         buffer = []
         chunk_count = 0
+        batch_num = 0
 
         def flush(buffer):
+            nonlocal batch_num
             if not buffer:
                 return
             embeddings = embed_texts([c['text'] for c in buffer])
@@ -67,6 +85,8 @@ def run_ingestion(repository):
                 for c in buffer
             ]
             add_chunks(repository.id, ids, embeddings, documents, metadatas)
+            batch_num += 1
+            _log_mem(f'repo {repository.id} after batch {batch_num} ({chunk_count} chunks so far)')
 
         for rel_path in file_paths:
             for chunk in chunker.chunk_file(repo_root, rel_path):
