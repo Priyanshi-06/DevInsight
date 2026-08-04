@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Network, Sparkles, GitPullRequest, FlaskConical, ArrowRight } from 'lucide-react';
+import { MessageSquare, Network, Sparkles, GitPullRequest, FlaskConical, ArrowRight, Trash2 } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 
@@ -27,6 +27,19 @@ export default function Home() {
       .catch(() => {})
       .finally(() => setLoadingRepos(false));
   }, []);
+
+  async function handleDeleteRepo(e, repo) {
+    e.stopPropagation();
+    if (!window.confirm(`Delete ${repo.owner}/${repo.name}? This removes its analysis and chat history.`)) {
+      return;
+    }
+    try {
+      await api.deleteRepo(repo.id);
+      setRepos((prev) => prev.filter((r) => r.id !== repo.id));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -112,6 +125,15 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0 ml-3">
                   <StatusBadge status={repo.status} />
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => handleDeleteRepo(e, repo)}
+                    title="Delete analysis"
+                    className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </span>
                   <ArrowRight className="h-4 w-4 text-zinc-600 group-hover:text-[#9c6570] group-hover:translate-x-0.5 transition" />
                 </div>
               </li>
