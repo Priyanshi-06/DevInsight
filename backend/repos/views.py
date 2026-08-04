@@ -1,5 +1,7 @@
-import threading
+import subprocess
+import sys
 
+from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,7 +14,6 @@ from .serializers import (
     UpdateRepositorySerializer,
 )
 from .services import fetch
-from .services.ingest import run_ingestion
 from .services.fetch import RepoFetchError
 from vectorstore.client import delete_collection
 
@@ -29,8 +30,14 @@ def _start_ingestion(repository):
     repository.status = 'pending'
     repository.save(update_fields=['status', 'updated_at'])
 
-    thread = threading.Thread(target=run_ingestion, args=(repository,), daemon=True)
-    thread.start()
+    # A separate OS process rather than a background thread, so ingestion (which loads a
+    # ~350MB ONNX embedding model) always starts from a fresh, predictable memory baseline
+    # instead of inheriting whatever the long-lived web process has already accumulated from
+    # serving ordinary requests over its lifetime -- a real contributor to OOM crashes on a
+    # memory-constrained host. stdout/stderr are inherited so ingestion's own log lines still
+    # show up in the same captured logs as everything else.
+    manage_py = str(settings.BASE_DIR / 'manage.py')
+    subprocess.Popen([sys.executable, manage_py, 'run_ingestion', str(repository.id)])
 
 
 class RepositoryListCreateView(APIView):
