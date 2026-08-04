@@ -331,3 +331,12 @@ See `backend/.env.example` for the full list of environment variables each servi
   bigger instance, or `EMBEDDING_PROVIDER=openai`, to index reliably.
 - Rotate any credentials (API keys, `SECRET_KEY`, email app passwords) that have ever been shared
   or committed anywhere outside your own `.env`/host dashboard.
+
+## Contributing
+
+Open to contributions — bug fixes, new features, or just cleanup. Fork the repo, make your
+changes, and open a pull request.
+
+## Author
+
+**Priyanshi**
