@@ -137,6 +137,13 @@ OPENAI_EMBEDDING_MODEL = env('OPENAI_EMBEDDING_MODEL', default='text-embedding-3
 
 CHROMA_PERSIST_DIR = env('CHROMA_PERSIST_DIR', default=str(BASE_DIR / 'chroma_data'))
 
+# Used only by the pgvector backend (vectorstore/pg_backend.py), which is selected
+# automatically when DATABASE_URL points at Postgres. Must match the output dimension of
+# whichever embedding model is actually active (384 for the default local MiniLM model).
+# Changing embedding provider/model in production requires updating this and re-indexing,
+# since a pgvector column has a fixed width.
+EMBEDDING_DIM = env.int('EMBEDDING_DIM', default=384)
+
 GITHUB_TOKEN = env('GITHUB_TOKEN', default='')
 
 # Password reset emails: defaults to Django's console backend, which just prints the email to
