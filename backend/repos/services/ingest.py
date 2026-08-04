@@ -1,5 +1,4 @@
 import shutil
-import time
 import traceback
 
 from django.utils import timezone
@@ -81,11 +80,7 @@ def run_ingestion(repository):
             nonlocal batch_num
             if not buffer:
                 return
-            t0 = time.monotonic()
             embeddings = embed_texts([c['text'] for c in buffer])
-            t1 = time.monotonic()
-            print(f'[timing] repo {repository.id} batch {batch_num + 1}: embed done in {t1 - t0:.1f}s', flush=True)
-            _log_mem(f'repo {repository.id} after embedding batch {batch_num + 1}')
             ids = [f'{repository.id}-{chunk_count - len(buffer) + j}' for j in range(len(buffer))]
             documents = [c['text'] for c in buffer]
             metadatas = [
@@ -93,13 +88,7 @@ def run_ingestion(repository):
                 for c in buffer
             ]
             add_chunks(repository.id, ids, embeddings, documents, metadatas)
-            t2 = time.monotonic()
             batch_num += 1
-            print(
-                f'[timing] repo {repository.id} batch {batch_num}: '
-                f'embed={t1 - t0:.1f}s write={t2 - t1:.1f}s',
-                flush=True,
-            )
             _log_mem(f'repo {repository.id} after batch {batch_num} ({chunk_count} chunks so far)')
 
         for rel_path in file_paths:

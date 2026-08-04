@@ -42,25 +42,18 @@ def delete_collection(repo_id):
 
 def add_chunks(repo_id, ids, embeddings, documents, metadatas):
     _ensure_schema()
-    if not ids:
-        return
-
-    # A single multi-row INSERT instead of executemany, which issues one round trip per row —
-    # over a network connection to a hosted Postgres instance (e.g. Neon), that's the difference
-    # between 1 round trip and 100 for a batch this size.
-    params = []
-    for cid, doc, meta, emb in zip(ids, documents, metadatas, embeddings):
-        params += [repo_id, cid, meta['file_path'], meta['start_line'], meta['end_line'], doc, _vector_literal(emb)]
-    values_sql = ', '.join(['(%s, %s, %s, %s, %s, %s, %s::vector)'] * len(ids))
-
+    rows = [
+        (repo_id, cid, meta['file_path'], meta['start_line'], meta['end_line'], doc, _vector_literal(emb))
+        for cid, doc, meta, emb in zip(ids, documents, metadatas, embeddings)
+    ]
     with connection.cursor() as cursor:
-        cursor.execute(
-            f'''
+        cursor.executemany(
+            '''
             INSERT INTO code_chunks
                 (repository_id, chunk_id, file_path, start_line, end_line, document, embedding)
-            VALUES {values_sql}
+            VALUES (%s, %s, %s, %s, %s, %s, %s::vector)
             ''',
-            params,
+            rows,
         )
 
 
