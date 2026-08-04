@@ -10,7 +10,7 @@ and unit test generation.
 **Chat completions:** Groq (OpenAI-compatible). **Embeddings:** free local model (`fastembed`) by
 default, or OpenAI's embeddings API.
 
-![Landing page](docs/screenshots/landing.png)
+![Dashboard](docs/screenshots/dashboard.png)
 
 ## Features
 
@@ -21,38 +21,183 @@ default, or OpenAI's embeddings API.
 - **Chat (RAG)**: ask natural-language questions about the repo; answers are grounded in retrieved
   code chunks and cite the exact file/line ranges. Each repo keeps its own chat sessions —
   switchable, deletable, and rendered as real markdown so copy/paste preserves formatting.
-- **Architecture diagrams**: parses import/require statements to build a module dependency graph,
-  rendered as Mermaid diagrams (a high-level overview plus per-module class diagrams), with an
-  AI-written summary.
+- **Architecture diagrams**: parses import/require statements to build a module dependency graph.
+  A high-level overview shows how top-level directories depend on each other; switching to
+  low-level design renders a UML-style class diagram per module (classes, methods, and an
+  explanation of each, sourced straight from the indexed code) — plus an AI-written summary of
+  the whole system.
 - **Contribution recommendations**: pulls real open issues from GitHub (preferring `good first
-  issue`/`help wanted` labels), grounds each in relevant code, and summarizes it for a newcomer.
-- **PR draft assistant**: given an issue or a task description, retrieves the most relevant file,
-  has the AI propose a change, and produces a real unified diff for you to review — nothing is
-  pushed to GitHub automatically.
+  issue`/`help wanted` labels), grounds each in relevant code, and summarizes it for a newcomer —
+  including which files it thinks you'd need to touch.
+- **PR draft assistant**: given an issue number or a task description, retrieves the most relevant
+  file, has the AI propose a change, and produces a real unified diff for you to review — nothing
+  is pushed to GitHub automatically.
 - **Test case generator**: pick a file (or describe a task) and get a generated test suite — happy
   path, edge cases, and mocked dependencies — with an explanation of what's covered.
+- **File browser**: every indexed file is listed in a searchable tree; click one to view its source
+  in a read-only viewer, fetched fresh from GitHub.
+- **Tweaks**: rename how a repo is displayed and add your own description, without touching
+  anything on GitHub — purely cosmetic, local to your account.
 - **Staleness detection**: on-demand check for whether a repo's default branch has moved past the
   commit that was actually indexed, with a one-click re-index.
 - **Auth**: email/password signup and login (JWT), plus OTP-based password reset — a 6-digit code
   emailed to you, verified on-site, no email links.
 
-| Chat with citations | Architecture diagram |
-|---|---|
-| ![Chat](docs/screenshots/chat.png) | ![Architecture](docs/screenshots/architecture.png) |
+## Screenshots
 
-| Contribution recommendations | PR draft assistant |
-|---|---|
-| ![Recommendations](docs/screenshots/recommendations.png) | ![PR Assistant](docs/screenshots/pr-assistant.png) |
+<table>
+<tr>
+<td width="50%">
 
-| Test case generator | Repository overview |
-|---|---|
-| ![Test Generator](docs/screenshots/test-generator.png) | ![Overview](docs/screenshots/overview.png) |
+**Repository overview**
+![Overview](docs/screenshots/overview.png)
 
-## Project layout
+</td>
+<td width="50%">
+
+**Chat with citations**
+![Chat](docs/screenshots/chat.png)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Architecture — high-level design**
+![Architecture HLD](docs/screenshots/architecture-hld.png)
+
+</td>
+<td width="50%">
+
+**Architecture — low-level design**
+![Architecture LLD](docs/screenshots/architecture-lld.png)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Contribution recommendations**
+![Recommendations](docs/screenshots/recommendations.png)
+
+</td>
+<td width="50%">
+
+**PR draft assistant**
+![PR Assistant](docs/screenshots/pr-assistant.png)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Test case generator**
+![Test Generator](docs/screenshots/test-generator.png)
+
+</td>
+<td width="50%">
+
+**File browser**
+![File browser](docs/screenshots/file-browser.png)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Tweaks panel** — rename/describe a repo locally
+![Tweaks panel](docs/screenshots/tweaks.png)
+
+</td>
+<td width="50%"></td>
+</tr>
+</table>
+
+## Project structure
 
 ```
-backend/    Django + DRF API — accounts (auth/OTP), repos (ingestion), chat (RAG), contrib (architecture/recommendations/PR drafts/tests)
-frontend/   React + Tailwind SPA
+DevInsight/
+├── backend/                        Django + DRF API
+│   ├── accounts/                   Signup/login (JWT), OTP-based password reset
+│   │   ├── emails.py                 HTML + plaintext OTP email
+│   │   ├── models.py                 PasswordResetOTP
+│   │   ├── serializers.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── repos/                      Repo ingestion, staleness, file browser
+│   │   ├── management/commands/
+│   │   ├── services/
+│   │   │   ├── chunker.py            Walks the repo, splits files into overlapping chunks
+│   │   │   ├── fetch.py               GitHub tarball download, metadata, raw file fetch
+│   │   │   └── ingest.py              Orchestrates fetch → chunk → embed → store
+│   │   ├── apps.py                   Resets stuck ingestion jobs on startup
+│   │   ├── models.py                  Repository, IngestionJob
+│   │   ├── serializers.py
+│   │   ├── urls.py                    Also mounts chat/ and contrib/ routes
+│   │   └── views.py
+│   ├── chat/                       RAG chat sessions
+│   │   ├── services/
+│   │   │   └── rag.py                 Retrieval + grounded prompt + citations
+│   │   ├── models.py                  ChatSession, ChatMessage
+│   │   ├── serializers.py
+│   │   └── views.py
+│   ├── contrib/                    Architecture, recommendations, PR drafts, tests
+│   │   ├── services/
+│   │   │   ├── architecture.py        Module dependency graph → Mermaid
+│   │   │   ├── github_issues.py       Fetches real open GitHub issues
+│   │   │   ├── imports_parser.py      Per-language import parsing
+│   │   │   ├── pr_draft.py            AI-proposed change → unified diff
+│   │   │   ├── recommendations.py     Grounded, beginner-friendly issue summaries
+│   │   │   └── test_generator.py      AI-generated test suites
+│   │   ├── models.py                  ArchitectureSnapshot, TestSuiteDraft
+│   │   ├── serializers.py
+│   │   └── views.py
+│   ├── vectorstore/                 Vector store abstraction
+│   │   ├── chroma_backend.py          Local dev: file-based ChromaDB
+│   │   ├── pg_backend.py              Production: Postgres + pgvector
+│   │   ├── client.py                  Dispatches by database vendor
+│   │   └── selection.py               Diverse top-k chunk selection
+│   ├── llm/
+│   │   └── client.py                  Chat completions + embeddings (local/OpenAI)
+│   ├── config/                      Django project settings
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   └── wsgi.py
+│   ├── Dockerfile
+│   ├── gunicorn.conf.py
+│   ├── manage.py
+│   ├── requirements.txt
+│   └── runtime.txt
+│
+├── frontend/                       React (Vite) + Tailwind SPA
+│   └── src/
+│       ├── api/
+│       │   └── client.js              All backend API calls
+│       ├── components/
+│       │   ├── ChatBubble.jsx           Markdown-rendered chat messages
+│       │   ├── CodeViewer.jsx           Read-only source viewer
+│       │   ├── DiffViewer.jsx           Unified diff renderer
+│       │   ├── FileTree.jsx             Indexed file browser
+│       │   ├── MermaidDiagram.jsx       Renders architecture diagrams
+│       │   ├── RequireAuth.jsx          Route guard
+│       │   └── ...                      Sidebar, TopBar, StatusBadge, AuthLayout, etc.
+│       ├── context/
+│       │   └── AuthContext.jsx
+│       ├── layouts/
+│       │   └── RepoLayout.jsx           Shared per-repo layout + ingestion polling
+│       └── pages/
+│           ├── Landing.jsx              Logged-out marketing page
+│           ├── Home.jsx                 Dashboard — submit/browse repos
+│           ├── Login.jsx / Signup.jsx / ForgotPassword.jsx
+│           ├── RepoDashboard.jsx        Repo Overview + Tweaks panel
+│           ├── Chat.jsx
+│           ├── Architecture.jsx
+│           ├── Recommendations.jsx
+│           ├── PrAssistant.jsx
+│           └── TestGenerator.jsx
+│
+└── docs/
+    └── screenshots/
 ```
 
 ## Backend setup
@@ -186,3 +331,12 @@ See `backend/.env.example` for the full list of environment variables each servi
   bigger instance, or `EMBEDDING_PROVIDER=openai`, to index reliably.
 - Rotate any credentials (API keys, `SECRET_KEY`, email app passwords) that have ever been shared
   or committed anywhere outside your own `.env`/host dashboard.
+
+## Contributing
+
+Open to contributions — bug fixes, new features, or just cleanup. Fork the repo, make your
+changes, and open a pull request.
+
+## Author
+
+**Priyanshi** — [GitHub](https://github.com/Priyanshi-06)
