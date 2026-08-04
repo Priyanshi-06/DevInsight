@@ -9,13 +9,16 @@ class ReposConfig(AppConfig):
     name = 'repos'
 
     def ready(self):
-        # Ingestion runs on a plain background thread (see services/ingest.py), which does not
-        # survive a server restart. Any repository left in a non-terminal state when the process
-        # starts belongs to a thread that no longer exists, so mark it failed instead of leaving
-        # the frontend polling forever.
+        # Ingestion runs in its own short-lived process (see services/ingest.py and the
+        # run_ingestion management command), which does not survive a server restart. Any
+        # repository left in a non-terminal state when the *web* process starts belongs to a
+        # process that no longer exists, so mark it failed instead of leaving the frontend
+        # polling forever.
         uses_autoreloader = 'runserver' in sys.argv and '--noreload' not in sys.argv
         if uses_autoreloader and os.environ.get('RUN_MAIN') != 'true':
             return  # this is the autoreloader's watcher process, not the one serving requests
+        if 'run_ingestion' in sys.argv:
+            return  # an ingestion subprocess's own startup — not the long-lived web process
 
         try:
             from django.db.models import Q
