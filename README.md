@@ -39,7 +39,8 @@ default, or OpenAI's embeddings API.
 - **Tweaks**: rename how a repo is displayed and add your own description, without touching
   anything on GitHub — purely cosmetic, local to your account.
 - **Staleness detection**: on-demand check for whether a repo's default branch has moved past the
-  commit that was actually indexed, with a one-click re-index.
+  commit that was actually indexed, with a one-click re-index. The GitHub call behind this is
+  cached for 5 minutes per repo to stay well within GitHub's unauthenticated rate limit.
 - **Auth**: email/password signup and login (JWT), plus OTP-based password reset — a 6-digit code
   emailed to you, verified on-site, no email links.
 
@@ -331,6 +332,11 @@ See `backend/.env.example` for the full list of environment variables each servi
   bigger instance, or `EMBEDDING_PROVIDER=openai`, to index reliably.
 - Rotate any credentials (API keys, `SECRET_KEY`, email app passwords) that have ever been shared
   or committed anywhere outside your own `.env`/host dashboard.
+- No dedicated cache layer (Redis, etc.) — Architecture and Recommendations are cached by simply
+  persisting the generated result and only recomputing on an explicit "Regenerate"/"Refresh", and
+  the staleness check uses Django's default in-memory cache for a short TTL. Fine for a single
+  gunicorn worker; a multi-worker or multi-instance deployment would need a shared backend
+  (Redis, Memcached) instead, since in-memory cache isn't shared across processes.
 
 ## Contributing
 
