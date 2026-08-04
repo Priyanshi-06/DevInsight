@@ -129,11 +129,12 @@ LLM_API_KEY = env('LLM_API_KEY', default='')
 LLM_BASE_URL = env('LLM_BASE_URL', default='')
 LLM_CHAT_MODEL = env('LLM_CHAT_MODEL', default='gpt-4o-mini')
 
-# Embeddings: 'local' (default) runs a free sentence-transformers model on CPU, no API key
-# needed. 'openai' uses OpenAI's embeddings API and requires OPENAI_API_KEY (Groq has no
-# embeddings endpoint, so it cannot be used here).
+# Embeddings: 'local' (default) runs a free ONNX model via fastembed on CPU, no API key
+# needed, no torch dependency (kept light for memory-constrained hosts). 'openai' uses
+# OpenAI's embeddings API and requires OPENAI_API_KEY (Groq has no embeddings endpoint,
+# so it cannot be used here).
 EMBEDDING_PROVIDER = env('EMBEDDING_PROVIDER', default='local')
-LOCAL_EMBEDDING_MODEL = env('LOCAL_EMBEDDING_MODEL', default='all-MiniLM-L6-v2')
+LOCAL_EMBEDDING_MODEL = env('LOCAL_EMBEDDING_MODEL', default='sentence-transformers/all-MiniLM-L6-v2')
 OPENAI_API_KEY = env('OPENAI_API_KEY', default='')
 OPENAI_EMBEDDING_MODEL = env('OPENAI_EMBEDDING_MODEL', default='text-embedding-3-small')
 

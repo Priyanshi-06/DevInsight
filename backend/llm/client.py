@@ -42,8 +42,8 @@ def _get_openai_embedding_client():
 def _get_local_embedder():
     global _local_embedder
     if _local_embedder is None:
-        from sentence_transformers import SentenceTransformer
-        _local_embedder = SentenceTransformer(settings.LOCAL_EMBEDDING_MODEL)
+        from fastembed import TextEmbedding
+        _local_embedder = TextEmbedding(model_name=settings.LOCAL_EMBEDDING_MODEL)
     return _local_embedder
 
 
@@ -53,8 +53,7 @@ def embed_texts(texts):
 
     if settings.EMBEDDING_PROVIDER == 'local':
         model = _get_local_embedder()
-        embeddings = model.encode(texts, show_progress_bar=False, batch_size=32)
-        return embeddings.tolist()
+        return [vector.tolist() for vector in model.embed(texts, batch_size=32)]
 
     client = _get_openai_embedding_client()
     batch_size = 100
