@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+venv/
+db.sqlite3
+chroma_data/
+staticfiles/
+__pycache__/
+**/__pycache__/
+**/migrations/__pycache__/
+*.pyc
+.git/
+.gitignore
+Dockerfile
+.dockerignore
