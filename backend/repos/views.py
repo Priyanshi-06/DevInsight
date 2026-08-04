@@ -1,5 +1,6 @@
 import threading
 
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -144,12 +145,18 @@ class RepositoryStalenessView(APIView):
         if repository.status != 'completed':
             return Response({'is_stale': False, 'indexed_commit': repository.last_indexed_commit_sha or None, 'latest_commit': None})
 
-        try:
-            latest_sha = fetch.fetch_latest_commit_sha(
-                repository.owner, repository.name, repository.default_branch,
-            )
-        except RepoFetchError as exc:
-            return Response({'error': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        # Cached briefly per repo: this fires on every completed-repo dashboard load, and
+        # GitHub's unauthenticated rate limit is exactly what bit us in production before.
+        cache_key = f'staleness:{repository.id}'
+        latest_sha = cache.get(cache_key)
+        if latest_sha is None:
+            try:
+                latest_sha = fetch.fetch_latest_commit_sha(
+                    repository.owner, repository.name, repository.default_branch,
+                )
+            except RepoFetchError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+            cache.set(cache_key, latest_sha, timeout=300)
 
         is_stale = bool(repository.last_indexed_commit_sha) and latest_sha != repository.last_indexed_commit_sha
         return Response({
