@@ -19,7 +19,10 @@ def _log_mem(label):
         return
     # ru_maxrss is peak RSS in KB on Linux (this process, growing monotonically over its life).
     peak_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
-    print(f'[mem] {label}: peak RSS so far = {peak_mb:.1f} MB')
+    # flush=True: stdout is fully buffered when not attached to a terminal (gunicorn's case), so
+    # without it, output sitting in the buffer is lost outright if the process gets SIGKILL'd by
+    # an OOM kill before the buffer is ever flushed — exactly the failure this is meant to catch.
+    print(f'[mem] {label}: peak RSS so far = {peak_mb:.1f} MB', flush=True)
 
 
 def run_ingestion(repository):
