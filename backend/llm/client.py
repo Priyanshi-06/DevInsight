@@ -43,15 +43,7 @@ def _get_local_embedder():
     global _local_embedder
     if _local_embedder is None:
         from fastembed import TextEmbedding
-        # threads=1 and a disabled memory arena trade inference speed for a much lower memory
-        # ceiling — worthwhile on a RAM-constrained host (Render's free tier is 512MB) where
-        # ONNX Runtime's default thread pool and pre-reserved arena were pushing peak usage to
-        # within ~12MB of the hard limit on a single batch.
-        _local_embedder = TextEmbedding(
-            model_name=settings.LOCAL_EMBEDDING_MODEL,
-            threads=1,
-            enable_cpu_mem_arena=False,
-        )
+        _local_embedder = TextEmbedding(model_name=settings.LOCAL_EMBEDDING_MODEL)
     return _local_embedder
 
 

@@ -84,8 +84,6 @@ def run_ingestion(repository):
             t0 = time.monotonic()
             embeddings = embed_texts([c['text'] for c in buffer])
             t1 = time.monotonic()
-            print(f'[timing] repo {repository.id} batch {batch_num + 1}: embed done in {t1 - t0:.1f}s', flush=True)
-            _log_mem(f'repo {repository.id} after embedding batch {batch_num + 1}')
             ids = [f'{repository.id}-{chunk_count - len(buffer) + j}' for j in range(len(buffer))]
             documents = [c['text'] for c in buffer]
             metadatas = [
