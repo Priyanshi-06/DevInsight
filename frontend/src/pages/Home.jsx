@@ -12,6 +12,28 @@ const FEATURES = [
   { icon: FlaskConical, label: 'Test case generator' },
 ];
 
+// Common full-stack folder pairings — if the user picks one side, it's worth pointing out the
+// other exists too, since indexing just "frontend" of an app that also has a "backend" folder
+// would leave chat/architecture blind to half the actual system.
+const COMPLEMENTARY_FOLDER_PAIRS = [
+  ['frontend', 'backend'],
+  ['client', 'server'],
+  ['web', 'api'],
+  ['ui', 'api'],
+  ['app', 'server'],
+];
+
+function findComplementSuggestion(selectedFolders, availableFolders) {
+  const selectedLower = new Set(selectedFolders.map((f) => f.toLowerCase()));
+  for (const [a, b] of COMPLEMENTARY_FOLDER_PAIRS) {
+    const missing = selectedLower.has(a) ? b : selectedLower.has(b) ? a : null;
+    if (!missing) continue;
+    const match = availableFolders.find((f) => f.path.toLowerCase() === missing);
+    if (match && !selectedLower.has(match.path.toLowerCase())) return match.path;
+  }
+  return null;
+}
+
 export default function Home() {
   const [url, setUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +112,10 @@ export default function Home() {
     setSelectedFolders([]);
   }
 
+  const complementSuggestion = folderPrompt
+    ? findComplementSuggestion(selectedFolders, folderPrompt.folders)
+    : null;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-16">
       <div className="text-center mb-8">
@@ -152,6 +178,21 @@ export default function Home() {
               );
             })}
           </div>
+          {complementSuggestion && (
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[#6b2c35]/40 bg-[#6b2c35]/10 px-3 py-2 text-xs text-zinc-300">
+              <span>
+                Also select <span className="text-white font-medium">{complementSuggestion}</span>? Indexing
+                just one side of a full-stack app means chat and architecture won't see the other half.
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleFolder(complementSuggestion)}
+                className="shrink-0 px-2.5 py-1 rounded-md bg-[#6b2c35] text-white text-xs font-medium hover:opacity-90 transition"
+              >
+                Add
+              </button>
+            </div>
+          )}
           <div className="mt-4 flex gap-2">
             <button
               type="button"
