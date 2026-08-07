@@ -72,10 +72,10 @@ export const api = {
 
   listRepos: () => request('/repos/'),
   getRepo: (id) => request(`/repos/${id}/`),
-  createRepo: (githubUrl) =>
+  createRepo: (githubUrl, scopedPaths = []) =>
     request('/repos/', {
       method: 'POST',
-      body: JSON.stringify({ github_url: githubUrl }),
+      body: JSON.stringify({ github_url: githubUrl, scoped_paths: scopedPaths }),
     }),
   deleteRepo: (id) => request(`/repos/${id}/`, { method: 'DELETE' }),
   updateRepo: (id, { displayName, description }) =>

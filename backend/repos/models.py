@@ -32,6 +32,11 @@ class Repository(models.Model):
     # The commit SHA that was actually indexed, captured at ingestion time — compared against the
     # branch's current HEAD to detect when the indexed snapshot has gone stale.
     last_indexed_commit_sha = models.CharField(max_length=40, blank=True, default='')
+    # Top-level folders (e.g. ['src', 'backend']) chosen for a large repo instead of indexing
+    # everything — empty list means "index the whole repo" (the default, unchanged behavior for
+    # any repo under the size/file-count threshold). Persisted so a later re-index reuses the
+    # same scope automatically.
+    scoped_paths = models.JSONField(default=list, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

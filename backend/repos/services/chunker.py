@@ -28,11 +28,20 @@ def _is_probably_binary(sample: bytes) -> bool:
     return False
 
 
-def collect_files(repo_root):
-    """Walks the extracted repo and returns a sorted list of relative file paths worth indexing."""
+def collect_files(repo_root, scoped_paths=None):
+    """Walks the extracted repo and returns a sorted list of relative file paths worth indexing.
+    If scoped_paths is given (a list of top-level folder names, e.g. ['src', 'backend']), only
+    those folders are walked at all — pruned before os.walk descends into anything else, so a
+    huge unrelated subtree is never even read from disk, not just filtered out afterward."""
+    scoped_set = set(scoped_paths) if scoped_paths else None
     collected = []
     for dirpath, dirnames, filenames in os.walk(repo_root):
-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith('.')]
+        if scoped_set is not None and dirpath == repo_root:
+            dirnames[:] = [d for d in dirnames if d in scoped_set]
+        else:
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith('.')]
+        if scoped_set is not None and dirpath == repo_root:
+            continue  # scoped mode excludes loose root-level files, only the chosen folders
         for filename in filenames:
             if filename in SKIP_FILENAMES:
                 continue
