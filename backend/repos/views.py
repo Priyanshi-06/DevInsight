@@ -1,5 +1,6 @@
 import threading
 
+from django.conf import settings
 from django.core.cache import cache
 from rest_framework import status
 from rest_framework.response import Response
@@ -12,7 +13,7 @@ from .serializers import (
     RepositorySerializer,
     UpdateRepositorySerializer,
 )
-from .services import fetch
+from .services import chunker, fetch
 from .services.ingest import run_ingestion
 from .services.fetch import RepoFetchError
 from vectorstore.client import delete_collection
@@ -22,6 +23,29 @@ from vectorstore.client import delete_collection
 MAX_FILE_PREVIEW_BYTES = 300_000
 
 IN_PROGRESS_STATUSES = ('pending', 'fetching', 'chunking', 'embedding')
+
+
+def _folder_options(entries):
+    """Groups tree entries by top-level folder for the folder-picker UI, counting only files that
+    would plausibly survive chunker.py's own filtering (extension/filename based — the binary
+    sniff and exact size check need downloaded content, so this is an estimate, not exact)."""
+    counts = {}
+    for entry in entries:
+        path = entry['path']
+        if '/' not in path:
+            continue  # loose root-level files aren't part of any folder choice
+        top = path.split('/')[0]
+        if top in chunker.SKIP_DIRS or top.startswith('.'):
+            continue
+        filename = path.rsplit('/', 1)[-1]
+        if filename in chunker.SKIP_FILENAMES or filename.lower().endswith(chunker.SKIP_FILE_SUFFIXES):
+            continue
+        counts[top] = counts.get(top, 0) + 1
+
+    return [
+        {'path': folder, 'file_count': count}
+        for folder, count in sorted(counts.items(), key=lambda kv: -kv[1])
+    ]
 
 
 def _start_ingestion(repository):
@@ -43,6 +67,7 @@ class RepositoryListCreateView(APIView):
         serializer = CreateRepositorySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         github_url = serializer.validated_data['github_url']
+        scoped_paths = serializer.validated_data['scoped_paths']
 
         try:
             owner, name = fetch.parse_github_url(github_url)
@@ -53,8 +78,33 @@ class RepositoryListCreateView(APIView):
         if existing:
             return Response(RepositorySerializer(existing).data, status=status.HTTP_200_OK)
 
+        # Only pre-flight-check on the *first* submission (no scope chosen yet). Once the user has
+        # already picked folders, proceed straight to indexing that scope — re-checking the whole
+        # repo's size again here would just ask the same question a second time.
+        if not scoped_paths:
+            try:
+                metadata = fetch.fetch_repo_metadata(owner, name)
+                entries, truncated = fetch.fetch_repo_tree(owner, name, metadata['default_branch'])
+            except RepoFetchError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+            total_kb = sum(e['size'] for e in entries) / 1024
+            over_limit = (
+                truncated
+                or len(entries) >= settings.MAX_REPO_FILES_BEFORE_SCOPING
+                or total_kb >= settings.MAX_REPO_SIZE_KB_BEFORE_SCOPING
+            )
+            if over_limit:
+                return Response({
+                    'needs_folder_selection': True,
+                    'file_count': len(entries),
+                    'size_kb': round(total_kb),
+                    'folders': _folder_options(entries),
+                })
+
         repository = Repository.objects.create(
             user=request.user, github_url=github_url, owner=owner, name=name, status='pending',
+            scoped_paths=scoped_paths,
         )
         _start_ingestion(repository)
 

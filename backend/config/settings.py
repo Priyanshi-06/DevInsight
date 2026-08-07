@@ -165,6 +165,14 @@ CHUNK_LINES = env.int('CHUNK_LINES', default=40)
 CHUNK_OVERLAP_LINES = env.int('CHUNK_OVERLAP_LINES', default=5)
 MAX_FILES_TO_INDEX = env.int('MAX_FILES_TO_INDEX', default=800)
 
+# Pre-flight check (repos/services/fetch.fetch_repo_tree), before any download happens: a repo at
+# or above either threshold asks the user to pick specific top-level folders to index instead of
+# indexing everything. Calibrated against real data: pallets/flask (236 files, ~1.8MB), a repo
+# that reliably pushed this app's local-embedding memory usage to the edge of Render's free-tier
+# 512MB limit, sits above both thresholds.
+MAX_REPO_FILES_BEFORE_SCOPING = env.int('MAX_REPO_FILES_BEFORE_SCOPING', default=150)
+MAX_REPO_SIZE_KB_BEFORE_SCOPING = env.int('MAX_REPO_SIZE_KB_BEFORE_SCOPING', default=1000)
+
 # Kept conservative so prompts fit under low-TPM free-tier chat rate limits (e.g. Groq's free
 # tier is 12,000 tokens/minute, shared across the whole app). Raise these if you're on a paid
 # tier or a provider with a higher limit.

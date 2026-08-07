@@ -57,6 +57,34 @@ def fetch_latest_commit_sha(owner, repo, branch):
     return resp.json()['sha']
 
 
+def fetch_repo_tree(owner, repo, branch):
+    """Lists every file path + size in a repo via GitHub's Git Trees API, without downloading
+    anything — used to decide whether a repo is small enough to index whole, before committing to
+    a full tarball download. Returns (entries, truncated), where entries is a list of
+    {'path': str, 'size': int} for blobs only (directories excluded), and truncated is True if
+    GitHub cut the response short (repo has more entries than the API returns in one call — in
+    that case the repo is unambiguously large enough to need folder scoping regardless of the
+    exact count)."""
+    resp = requests.get(
+        f'https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}',
+        params={'recursive': '1'},
+        headers=_github_headers(),
+        timeout=20,
+    )
+    if resp.status_code == 403:
+        raise RepoFetchError('GitHub API rate limit exceeded. Try again later or set GITHUB_TOKEN.')
+    if resp.status_code != 200:
+        raise RepoFetchError(f'Could not list files for {owner}/{repo}@{branch}.')
+
+    data = resp.json()
+    entries = [
+        {'path': item['path'], 'size': item.get('size', 0)}
+        for item in data.get('tree', [])
+        if item.get('type') == 'blob'
+    ]
+    return entries, bool(data.get('truncated'))
+
+
 def fetch_raw_file(owner, repo, branch, path, max_bytes=None):
     """Fetches a single file's raw content via GitHub's raw content endpoint — much lighter than
     download_and_extract() when only one file is needed. Returns (content, truncated)."""

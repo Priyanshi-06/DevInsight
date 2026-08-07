@@ -18,6 +18,10 @@ export default function Home() {
   const [error, setError] = useState('');
   const [repos, setRepos] = useState([]);
   const [loadingRepos, setLoadingRepos] = useState(true);
+  // Set only when a submitted repo is too large to index whole — holds the folder options and
+  // which URL they belong to, so "Continue" knows what to resubmit.
+  const [folderPrompt, setFolderPrompt] = useState(null);
+  const [selectedFolders, setSelectedFolders] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,13 +51,43 @@ export default function Home() {
     if (!url.trim()) return;
     setSubmitting(true);
     try {
-      const repo = await api.createRepo(url.trim());
+      const result = await api.createRepo(url.trim());
+      if (result.needs_folder_selection) {
+        setFolderPrompt({ url: url.trim(), ...result });
+        setSelectedFolders([]);
+      } else {
+        navigate(`/repos/${result.id}`);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function toggleFolder(path) {
+    setSelectedFolders((prev) =>
+      prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path],
+    );
+  }
+
+  async function handleConfirmFolders() {
+    if (selectedFolders.length === 0) return;
+    setError('');
+    setSubmitting(true);
+    try {
+      const repo = await api.createRepo(folderPrompt.url, selectedFolders);
       navigate(`/repos/${repo.id}`);
     } catch (err) {
       setError(err.message);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function cancelFolderPrompt() {
+    setFolderPrompt(null);
+    setSelectedFolders([]);
   }
 
   return (
@@ -83,22 +117,77 @@ export default function Home() {
         })}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://github.com/owner/repo"
-          className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#6b2c35] focus:border-transparent"
-        />
-        <button
-          type="submit"
-          disabled={submitting}
-          className="px-5 py-3 rounded-lg accent-gradient text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition shadow-lg shadow-[#6b2c35]/20"
-        >
-          {submitting ? 'Starting…' : 'Analyze'}
-        </button>
-      </form>
+      {folderPrompt ? (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+          <p className="text-sm text-white font-medium">
+            {folderPrompt.url.replace('https://github.com/', '')} is large ({folderPrompt.file_count} files,{' '}
+            {(folderPrompt.size_kb / 1024).toFixed(1)}MB)
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Pick one or more folders to index instead of the whole repo — keeps indexing fast and reliable.
+          </p>
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {folderPrompt.folders.map((folder) => {
+              const checked = selectedFolders.includes(folder.path);
+              return (
+                <label
+                  key={folder.path}
+                  className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${
+                    checked
+                      ? 'border-[#6b2c35] bg-[#6b2c35]/10 text-white'
+                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleFolder(folder.path)}
+                      className="accent-[#6b2c35]"
+                    />
+                    <span className="truncate">{folder.path}</span>
+                  </span>
+                  <span className="text-xs text-zinc-600 shrink-0">{folder.file_count}</span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={handleConfirmFolders}
+              disabled={submitting || selectedFolders.length === 0}
+              className="px-4 py-2 rounded-lg accent-gradient text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition"
+            >
+              {submitting ? 'Starting…' : `Analyze ${selectedFolders.length || ''} folder${selectedFolders.length === 1 ? '' : 's'}`.trim()}
+            </button>
+            <button
+              type="button"
+              onClick={cancelFolderPrompt}
+              className="px-4 py-2 rounded-lg border border-zinc-800 text-zinc-400 text-sm hover:text-white hover:border-zinc-700 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://github.com/owner/repo"
+            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#6b2c35] focus:border-transparent"
+          />
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-5 py-3 rounded-lg accent-gradient text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition shadow-lg shadow-[#6b2c35]/20"
+          >
+            {submitting ? 'Starting…' : 'Analyze'}
+          </button>
+        </form>
+      )}
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
 
       <div className="mt-14">

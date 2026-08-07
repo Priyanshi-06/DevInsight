@@ -59,7 +59,7 @@ def run_ingestion(repository):
         repository.status = 'chunking'
         repository.save(update_fields=['status', 'updated_at'])
 
-        file_paths = chunker.collect_files(repo_root)
+        file_paths = chunker.collect_files(repo_root, scoped_paths=repository.scoped_paths)
         _log_mem(f'repo {repository.id} after collect_files ({len(file_paths)} files)')
 
         repository.file_tree = file_paths
