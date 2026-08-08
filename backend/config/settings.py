@@ -159,6 +159,14 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@devinsight.local')
 
+# Optional: sends over Resend's HTTPS API instead of the SMTP settings above. Render's free tier
+# blocks outbound SMTP entirely (confirmed via a real "Network is unreachable" error in
+# production), but not regular HTTPS, so this is what actually lets password-reset email work
+# there. When unset, send_otp_email() falls back to EMAIL_BACKEND above unchanged — local dev
+# needs no Resend account at all.
+RESEND_API_KEY = env('RESEND_API_KEY', default='')
+RESEND_FROM_EMAIL = env('RESEND_FROM_EMAIL', default='DevInsight <onboarding@resend.dev>')
+
 # Ingestion tuning
 MAX_FILE_SIZE_BYTES = env.int('MAX_FILE_SIZE_BYTES', default=500_000)
 CHUNK_LINES = env.int('CHUNK_LINES', default=40)
