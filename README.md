@@ -18,6 +18,12 @@ default, or OpenAI's embeddings API.
   them in bounded batches, and stores the vectors — locally in ChromaDB during development, or in
   Postgres via the `pgvector` extension in production so the index survives redeploys. Live status
   (`pending → fetching → chunking → embedding → completed`) is shown in the UI.
+- **Large-repo folder scoping**: a pre-flight check (GitHub's tree API, no download needed) flags
+  repos over a file-count/size threshold and asks you to pick specific folders to index instead of
+  the whole thing. If a chosen folder is itself still too large, you're prompted to drill into its
+  subfolders one level further — repeats until it fits. Picking a folder like `frontend` also
+  suggests its likely counterpart (e.g. `backend`) so a full-stack app doesn't get indexed
+  half-blind.
 - **Chat (RAG)**: ask natural-language questions about the repo; answers are grounded in retrieved
   code chunks and cite the exact file/line ranges. Each repo keeps its own chat sessions —
   switchable, deletable, and rendered as real markdown so copy/paste preserves formatting.
@@ -41,8 +47,9 @@ default, or OpenAI's embeddings API.
 - **Staleness detection**: on-demand check for whether a repo's default branch has moved past the
   commit that was actually indexed, with a one-click re-index. The GitHub call behind this is
   cached for 5 minutes per repo to stay well within GitHub's unauthenticated rate limit.
-- **Auth**: email/password signup and login (JWT), plus OTP-based password reset — a 6-digit code
-  emailed to you, verified on-site, no email links.
+- **Auth**: email/password signup and login (JWT) with a show/hide toggle on password fields, plus
+  OTP-based password reset — a 6-digit code emailed to you (via SendGrid in production, since
+  Render's free tier blocks outbound SMTP), verified on-site, no email links.
 
 ## Screenshots
 
@@ -180,6 +187,7 @@ DevInsight/
 │       │   ├── DiffViewer.jsx           Unified diff renderer
 │       │   ├── FileTree.jsx             Indexed file browser
 │       │   ├── MermaidDiagram.jsx       Renders architecture diagrams
+│       │   ├── PasswordInput.jsx        Password field with show/hide toggle
 │       │   ├── RequireAuth.jsx          Route guard
 │       │   └── ...                      Sidebar, TopBar, StatusBadge, AuthLayout, etc.
 │       ├── context/
@@ -235,8 +243,10 @@ Edit `backend/.env`:
   `OPENAI_API_KEY` — vectors are stored as fixed-width columns in Postgres, so switching providers
   in production requires re-indexing existing repos.
 - **Password reset email** — defaults to printing the OTP email to the console, zero setup for
-  local dev. For real delivery, switch to the SMTP backend and fill in the `EMAIL_HOST_*` vars
-  (Gmail SMTP, SendGrid, Mailgun, etc.) — see the inline comments in `.env.example`.
+  local dev. For real delivery in production, set `SENDGRID_API_KEY` from a verified
+  [SendGrid](https://sendgrid.com) Single Sender — required on hosts like Render's free tier that
+  block outbound SMTP entirely (the `EMAIL_HOST_*` SMTP vars remain as a fallback for hosts that do
+  allow it) — see the inline comments in `.env.example`.
 - `GITHUB_TOKEN` is optional and only needed if you hit GitHub's unauthenticated API rate limit
   (60 requests/hour; a token raises it to 5,000/hour).
 
@@ -308,7 +318,8 @@ The app is served at `http://localhost:5173`. It talks to the backend at the URL
 7. **Password reset** (`accounts/`): a `PasswordResetOTP` model generates a 6-digit code with a
    10-minute expiry. The frontend flow is three explicit steps — request a code, verify it (without
    consuming it, so a wrong entry doesn't burn the real code), then set a new password — with an
-   HTML-formatted email (`accounts/emails.py`).
+   HTML-formatted email (`accounts/emails.py`) sent over SendGrid's HTTPS API in production (SMTP
+   is blocked on Render's free tier), falling back to the console backend locally.
 
 ## Deployment
 
