@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Check, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { api } from '../api/client';
 import AuthLayout from '../components/AuthLayout';
+import PasswordInput from '../components/PasswordInput';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -102,25 +103,21 @@ export default function ForgotPassword() {
         <form onSubmit={handlePasswordSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-zinc-400 mb-2">New password</label>
-            <input
-              type="password"
+            <PasswordInput
               required
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-black px-3.5 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#6b2c35] focus:border-transparent"
               placeholder="At least 8 characters"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-zinc-400 mb-2">Confirm new password</label>
-            <input
-              type="password"
+            <PasswordInput
               required
               minLength={8}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-black px-3.5 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#6b2c35] focus:border-transparent"
               placeholder="Re-enter your new password"
             />
           </div>
