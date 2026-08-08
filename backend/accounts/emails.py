@@ -39,21 +39,24 @@ _HTML_TEMPLATE = """\
 """
 
 
-def _send_via_resend(email, text_body, html_body):
+def _send_via_sendgrid(email, text_body, html_body):
     resp = requests.post(
-        'https://api.resend.com/emails',
-        headers={'Authorization': f'Bearer {settings.RESEND_API_KEY}'},
+        'https://api.sendgrid.com/v3/mail/send',
+        headers={'Authorization': f'Bearer {settings.SENDGRID_API_KEY}'},
         json={
-            'from': settings.RESEND_FROM_EMAIL,
-            'to': [email],
+            'personalizations': [{'to': [{'email': email}]}],
+            'from': {'email': settings.SENDGRID_FROM_EMAIL, 'name': settings.SENDGRID_FROM_NAME},
+            'reply_to': {'email': settings.SENDGRID_FROM_EMAIL, 'name': settings.SENDGRID_FROM_NAME},
             'subject': SUBJECT,
-            'html': html_body,
-            'text': text_body,
+            'content': [
+                {'type': 'text/plain', 'value': text_body},
+                {'type': 'text/html', 'value': html_body},
+            ],
         },
         timeout=15,
     )
     if resp.status_code >= 400:
-        raise RuntimeError(f'Resend API returned {resp.status_code}: {resp.text[:500]}')
+        raise RuntimeError(f'SendGrid API returned {resp.status_code}: {resp.text[:500]}')
 
 
 def _send_via_django_backend(email, text_body, html_body):
@@ -77,11 +80,11 @@ def send_otp_email(email, otp):
 
     try:
         # Render's free tier blocks outbound SMTP entirely (confirmed via a real "Network is
-        # unreachable" error in production) but not HTTPS, so Resend is used whenever it's
+        # unreachable" error in production) but not HTTPS, so SendGrid is used whenever it's
         # configured; otherwise this falls back to whatever EMAIL_BACKEND is set to (console for
         # local dev, or SMTP if someone configures it directly), completely unchanged from before.
-        if settings.RESEND_API_KEY:
-            _send_via_resend(email, text_body, html_body)
+        if settings.SENDGRID_API_KEY:
+            _send_via_sendgrid(email, text_body, html_body)
         else:
             _send_via_django_backend(email, text_body, html_body)
     except Exception as exc:  # noqa: BLE001

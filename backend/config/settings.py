@@ -159,13 +159,16 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@devinsight.local')
 
-# Optional: sends over Resend's HTTPS API instead of the SMTP settings above. Render's free tier
+# Optional: sends over SendGrid's HTTPS API instead of the SMTP settings above. Render's free tier
 # blocks outbound SMTP entirely (confirmed via a real "Network is unreachable" error in
 # production), but not regular HTTPS, so this is what actually lets password-reset email work
 # there. When unset, send_otp_email() falls back to EMAIL_BACKEND above unchanged — local dev
-# needs no Resend account at all.
-RESEND_API_KEY = env('RESEND_API_KEY', default='')
-RESEND_FROM_EMAIL = env('RESEND_FROM_EMAIL', default='DevInsight <onboarding@resend.dev>')
+# needs no SendGrid account at all. Uses a verified Single Sender (not full domain
+# authentication), which is enough to send to any recipient, unlike Resend's sandbox sender
+# which could only deliver to the account owner — that limitation is why Resend was replaced.
+SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
+SENDGRID_FROM_EMAIL = env('SENDGRID_FROM_EMAIL', default='devinsight2k26@gmail.com')
+SENDGRID_FROM_NAME = env('SENDGRID_FROM_NAME', default='DevInsight')
 
 # Ingestion tuning
 MAX_FILE_SIZE_BYTES = env.int('MAX_FILE_SIZE_BYTES', default=500_000)
