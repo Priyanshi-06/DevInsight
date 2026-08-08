@@ -25,25 +25,31 @@ MAX_FILE_PREVIEW_BYTES = 300_000
 IN_PROGRESS_STATUSES = ('pending', 'fetching', 'chunking', 'embedding')
 
 
-def _folder_options(entries):
-    """Groups tree entries by top-level folder for the folder-picker UI, counting only files that
-    would plausibly survive chunker.py's own filtering (extension/filename based — the binary
-    sniff and exact size check need downloaded content, so this is an estimate, not exact)."""
+def _folder_options(entries, prefix=''):
+    """Groups tree entries into the next path segment below `prefix` for the folder-picker UI —
+    top-level folders when prefix is empty, or one level of subfolders within `prefix` for a
+    drill-down when a previously chosen folder turns out to still be too large on its own. Counts
+    only files that would plausibly survive chunker.py's own filtering (extension/filename based —
+    the binary sniff and exact size check need downloaded content, so this is an estimate)."""
+    prefix_slash = f'{prefix}/' if prefix else ''
     counts = {}
     for entry in entries:
         path = entry['path']
-        if '/' not in path:
-            continue  # loose root-level files aren't part of any folder choice
-        top = path.split('/')[0]
+        if prefix and not path.startswith(prefix_slash):
+            continue
+        rel = path[len(prefix_slash):]
+        if '/' not in rel:
+            continue  # a loose file at this level isn't part of any folder choice
+        top = rel.split('/')[0]
         if top in chunker.SKIP_DIRS or top.startswith('.'):
             continue
-        filename = path.rsplit('/', 1)[-1]
+        filename = rel.rsplit('/', 1)[-1]
         if filename in chunker.SKIP_FILENAMES or filename.lower().endswith(chunker.SKIP_FILE_SUFFIXES):
             continue
         counts[top] = counts.get(top, 0) + 1
 
     return [
-        {'path': folder, 'file_count': count}
+        {'path': f'{prefix_slash}{folder}', 'file_count': count}
         for folder, count in sorted(counts.items(), key=lambda kv: -kv[1])
     ]
 
@@ -78,28 +84,46 @@ class RepositoryListCreateView(APIView):
         if existing:
             return Response(RepositorySerializer(existing).data, status=status.HTTP_200_OK)
 
-        # Only pre-flight-check on the *first* submission (no scope chosen yet). Once the user has
-        # already picked folders, proceed straight to indexing that scope — re-checking the whole
-        # repo's size again here would just ask the same question a second time.
-        if not scoped_paths:
-            try:
-                metadata = fetch.fetch_repo_metadata(owner, name)
-                entries, truncated = fetch.fetch_repo_tree(owner, name, metadata['default_branch'])
-            except RepoFetchError as exc:
-                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        # Pre-flight-checked on every submission, not just the first — a folder chosen from the
+        # picker (e.g. "docs") can itself still be too large, and re-checking here is what lets
+        # that be caught and drilled into further instead of just being indexed anyway.
+        try:
+            metadata = fetch.fetch_repo_metadata(owner, name)
+            entries, truncated = fetch.fetch_repo_tree(owner, name, metadata['default_branch'])
+        except RepoFetchError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-            total_kb = sum(e['size'] for e in entries) / 1024
-            over_limit = (
-                truncated
-                or len(entries) >= settings.MAX_REPO_FILES_BEFORE_SCOPING
-                or total_kb >= settings.MAX_REPO_SIZE_KB_BEFORE_SCOPING
-            )
-            if over_limit:
+        if scoped_paths:
+            prefixes = tuple(f'{p}/' for p in scoped_paths)
+            relevant_entries = [e for e in entries if e['path'].startswith(prefixes)]
+        else:
+            relevant_entries = entries
+
+        total_kb = sum(e['size'] for e in relevant_entries) / 1024
+        over_limit = (
+            truncated
+            or len(relevant_entries) >= settings.MAX_REPO_FILES_BEFORE_SCOPING
+            or total_kb >= settings.MAX_REPO_SIZE_KB_BEFORE_SCOPING
+        )
+        if over_limit:
+            if scoped_paths:
+                deeper_folders = []
+                for folder in scoped_paths:
+                    deeper_folders.extend(_folder_options(entries, prefix=folder))
+            else:
+                deeper_folders = _folder_options(entries)
+
+            # Only ask again if there's actually somewhere further to narrow to — a folder with
+            # no subfolders of its own (a flat directory of files) has nothing left to drill into,
+            # so it proceeds as-is rather than asking the same unanswerable question forever.
+            # chunker.MAX_FILES_TO_INDEX remains a hard cap regardless.
+            if deeper_folders:
                 return Response({
                     'needs_folder_selection': True,
-                    'file_count': len(entries),
+                    'file_count': len(relevant_entries),
                     'size_kb': round(total_kb),
-                    'folders': _folder_options(entries),
+                    'folders': deeper_folders,
+                    'narrowing_within': scoped_paths or None,
                 })
 
         repository = Repository.objects.create(

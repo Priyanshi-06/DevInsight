@@ -34,8 +34,9 @@ def _is_readme(filename: str) -> bool:
 
 def collect_files(repo_root, scoped_paths=None):
     """Walks the extracted repo and returns a sorted list of relative file paths worth indexing.
-    If scoped_paths is given (a list of top-level folder names, e.g. ['src', 'backend']), only
-    those folders are walked at all — pruned before os.walk descends into anything else, so a
+    If scoped_paths is given (e.g. ['src', 'backend'], or nested like ['docs/api'] when a chosen
+    folder was itself too large and got narrowed further), only those folders — at whatever depth
+    they're given — are walked at all, pruned before os.walk descends into anything else, so a
     huge unrelated subtree is never even read from disk, not just filtered out afterward. The root
     README is always included regardless of scope — without it, chat has no project-level context
     to answer "what is this repo about," even though that's exactly the kind of question a scoped
@@ -43,12 +44,38 @@ def collect_files(repo_root, scoped_paths=None):
     scoped_set = set(scoped_paths) if scoped_paths else None
     collected = []
     for dirpath, dirnames, filenames in os.walk(repo_root):
-        if scoped_set is not None and dirpath == repo_root:
-            dirnames[:] = [d for d in dirnames if d in scoped_set]
-        else:
+        rel_dir = os.path.relpath(dirpath, repo_root).replace(os.sep, '/')
+        if rel_dir == '.':
+            rel_dir = ''
+
+        if scoped_set is None:
             dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith('.')]
-        if scoped_set is not None and dirpath == repo_root:
+            in_scope = True
+        else:
+            # Fully inside a chosen folder (this dir *is* one, or is nested under one): normal
+            # noise filtering applies, same as unscoped mode, since the whole subtree was picked.
+            in_scope = rel_dir != '' and any(rel_dir == p or rel_dir.startswith(f'{p}/') for p in scoped_set)
+            if in_scope:
+                dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith('.')]
+            elif rel_dir == '':
+                # At the root, only descend into children that are (or lead to) a chosen folder.
+                dirnames[:] = [
+                    d for d in dirnames
+                    if any(d == p or p.startswith(f'{d}/') for p in scoped_set)
+                ]
+            else:
+                # Between the root and a chosen folder (e.g. "docs" on the way to "docs/api") —
+                # keep descending toward it, but nothing at this level is indexed yet.
+                child_prefix = f'{rel_dir}/'
+                dirnames[:] = [
+                    d for d in dirnames
+                    if any(f'{child_prefix}{d}' == p or p.startswith(f'{child_prefix}{d}/') for p in scoped_set)
+                ]
+
+        if scoped_set is not None and rel_dir == '':
             filenames = [f for f in filenames if _is_readme(f)]
+        elif scoped_set is not None and not in_scope:
+            filenames = []
         for filename in filenames:
             if filename in SKIP_FILENAMES:
                 continue
