@@ -1,7 +1,10 @@
+import requests
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
 from .models import PasswordResetOTP
+
+SUBJECT = 'Your DevInsight password reset code'
 
 _HTML_TEMPLATE = """\
 <div style="background:#000000;padding:40px 20px;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;">
@@ -36,6 +39,34 @@ _HTML_TEMPLATE = """\
 """
 
 
+def _send_via_resend(email, text_body, html_body):
+    resp = requests.post(
+        'https://api.resend.com/emails',
+        headers={'Authorization': f'Bearer {settings.RESEND_API_KEY}'},
+        json={
+            'from': settings.RESEND_FROM_EMAIL,
+            'to': [email],
+            'subject': SUBJECT,
+            'html': html_body,
+            'text': text_body,
+        },
+        timeout=15,
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f'Resend API returned {resp.status_code}: {resp.text[:500]}')
+
+
+def _send_via_django_backend(email, text_body, html_body):
+    message = EmailMultiAlternatives(
+        subject=SUBJECT,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[email],
+    )
+    message.attach_alternative(html_body, 'text/html')
+    message.send(fail_silently=False)
+
+
 def send_otp_email(email, otp):
     text_body = (
         f'Your password reset code is: {otp.code}\n\n'
@@ -44,19 +75,16 @@ def send_otp_email(email, otp):
     )
     html_body = _HTML_TEMPLATE.format(code=otp.code, minutes=PasswordResetOTP.OTP_LIFETIME_MINUTES)
 
-    message = EmailMultiAlternatives(
-        subject='Your DevInsight password reset code',
-        body=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[email],
-    )
-    message.attach_alternative(html_body, 'text/html')
     try:
-        message.send(fail_silently=False)
+        # Render's free tier blocks outbound SMTP entirely (confirmed via a real "Network is
+        # unreachable" error in production) but not HTTPS, so Resend is used whenever it's
+        # configured; otherwise this falls back to whatever EMAIL_BACKEND is set to (console for
+        # local dev, or SMTP if someone configures it directly), completely unchanged from before.
+        if settings.RESEND_API_KEY:
+            _send_via_resend(email, text_body, html_body)
+        else:
+            _send_via_django_backend(email, text_body, html_body)
     except Exception as exc:  # noqa: BLE001
         # ForgotPasswordView always returns the same generic response regardless of send
-        # success, so this print is the *only* place a real SMTP failure (bad credentials,
-        # blocked port, etc.) would ever be visible — fail_silently=True previously swallowed
-        # this completely, making a broken production email setup indistinguishable from a
-        # working one from the outside.
+        # success, so this print is the *only* place a real send failure would ever be visible.
         print(f'[accounts] Failed to send OTP email to {email}: {exc}', flush=True)
