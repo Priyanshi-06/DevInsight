@@ -98,8 +98,15 @@ export default function Home() {
     setError('');
     setSubmitting(true);
     try {
-      const repo = await api.createRepo(folderPrompt.url, selectedFolders);
-      navigate(`/repos/${repo.id}`);
+      const result = await api.createRepo(folderPrompt.url, selectedFolders);
+      if (result.needs_folder_selection) {
+        // A chosen folder turned out to still be too large on its own — drill in one level
+        // further instead of indexing it whole.
+        setFolderPrompt({ url: folderPrompt.url, ...result });
+        setSelectedFolders([]);
+      } else {
+        navigate(`/repos/${result.id}`);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -146,11 +153,15 @@ export default function Home() {
       {folderPrompt ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
           <p className="text-sm text-white font-medium">
-            {folderPrompt.url.replace('https://github.com/', '')} is large ({folderPrompt.file_count} files,{' '}
-            {(folderPrompt.size_kb / 1024).toFixed(1)}MB)
+            {folderPrompt.narrowing_within
+              ? `${folderPrompt.narrowing_within.join(', ')} is still large`
+              : folderPrompt.url.replace('https://github.com/', '')}{' '}
+            ({folderPrompt.file_count} files, {(folderPrompt.size_kb / 1024).toFixed(1)}MB)
           </p>
           <p className="mt-1 text-xs text-zinc-500">
-            Pick one or more folders to index instead of the whole repo — keeps indexing fast and reliable.
+            {folderPrompt.narrowing_within
+              ? 'Pick more specific subfolders to narrow it down further.'
+              : 'Pick one or more folders to index instead of the whole repo — keeps indexing fast and reliable.'}
           </p>
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
             {folderPrompt.folders.map((folder) => {

@@ -51,4 +51,12 @@ def send_otp_email(email, otp):
         to=[email],
     )
     message.attach_alternative(html_body, 'text/html')
-    message.send(fail_silently=True)
+    try:
+        message.send(fail_silently=False)
+    except Exception as exc:  # noqa: BLE001
+        # ForgotPasswordView always returns the same generic response regardless of send
+        # success, so this print is the *only* place a real SMTP failure (bad credentials,
+        # blocked port, etc.) would ever be visible — fail_silently=True previously swallowed
+        # this completely, making a broken production email setup indistinguishable from a
+        # working one from the outside.
+        print(f'[accounts] Failed to send OTP email to {email}: {exc}', flush=True)
